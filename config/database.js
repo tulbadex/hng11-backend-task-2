@@ -4,13 +4,13 @@ const { Pool } = require('pg');
 
 // const sequelize = new Sequelize(config.DATABASE_URL) // Example for postgres
 const sequelize = new Sequelize(config.database, config.username, config.password, {
-    host: 'localhost',
+    host: config.host,
     dialect: 'postgres', // or 'mysql', 'sqlite', etc.
 });
 
 const pool = new Pool({
     user: config.username,
-    host: 'localhost',
+    host: config.host,
     database: config.database,
     password: config.password,
     port: 5432,

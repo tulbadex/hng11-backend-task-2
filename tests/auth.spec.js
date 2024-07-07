@@ -5,11 +5,15 @@ const app = require('../app');
 const { sequelize } = require('../config/database');
 
 beforeAll(async () => {
-  // await sequelize.sync({ force: true });
+  await sequelize.sync({ force: true });
 });
 
+beforeEach(async () => {
+  await sequelize.sync({ force: true });
+})
+
 afterAll(async () => {
-  await sequelize.query(`
+  /* await sequelize.query(`
     DO
     $func$
     BEGIN
@@ -21,25 +25,29 @@ afterAll(async () => {
       );
     END
     $func$;
-  `);
+  `); */
    await sequelize.close();
 });
 
 afterEach(async () => {
-  // await sequelize.query(`
-  //   DO
-  //   $func$
-  //   BEGIN
-  //     EXECUTE
-  //     (SELECT 'TRUNCATE TABLE ' || string_agg(oid::regclass::text, ', ') || ' RESTART IDENTITY CASCADE'
-  //       FROM   pg_class
-  //       WHERE  relkind = 'r'  -- only tables
-  //       AND    relnamespace = 'public'::regnamespace
-  //     );
-  //   END
-  //   $func$;
-  // `);
+ 
 });
+
+let accessToken = '';
+
+async function registerUser() {
+  const res = await request(app)
+      .post('/auth/register')
+      .send({
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'johnreal.doe@example.com',
+        password: 'password123',
+        phone: '1234567890'
+  }).expect(201).then((res) => {
+    accessToken = res.body.data.accessToken;
+  });
+}
 
 describe('Auth Endpoints', () => {
   it('Should Register User Successfully with Default Organisation', async () => {
@@ -72,10 +80,11 @@ describe('Auth Endpoints', () => {
 
   // Log the user in successfully
   it('should log in a user successfully', async () => {
+    await registerUser()
     const res = await request(app)
       .post('/auth/login')
       .send({
-        email: 'john.doe@example.com',
+        email: 'johnreal.doe@example.com',
         password: 'password123',
     });
 
@@ -87,7 +96,7 @@ describe('Auth Endpoints', () => {
     expect(res.body.data.user).toHaveProperty('userId');
     expect(res.body.data.user).toHaveProperty('firstName', 'John');
     expect(res.body.data.user).toHaveProperty('lastName', 'Doe');
-    expect(res.body.data.user).toHaveProperty('email', 'john.doe@example.com');
+    expect(res.body.data.user).toHaveProperty('email', 'johnreal.doe@example.com');
   });
 
   it('Should Fail If Required Fields is empty', async () => {
@@ -125,12 +134,13 @@ describe('Auth Endpoints', () => {
   });
 
   it('Should Fail if there’s Duplicate Email', async () => {
+    await registerUser()
     const res = await request(app)
       .post('/auth/register')
       .send({
         firstName: 'Jane',
         lastName: 'Doe',
-        email: 'john.doe@example.com', // duplicate email
+        email: 'johnreal.doe@example.com', // duplicate email
         password: 'password123',
         phone: '0987654321'
       });
