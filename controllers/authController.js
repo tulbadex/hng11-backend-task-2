@@ -1,10 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/user');
-const Organisation = require('../models/organisation');
+const { User, Organisation, UserOrganisation } = require("../models");
 const { v4: uuidv4 } = require('uuid');
 const { validateRegistration, validateLogin } = require('../validation');
-const UserOrganisation = require('../models/userOrganisation')
 
 const formatValidationErrors = (details) => {
   return details.map((err) => ({
@@ -109,87 +107,70 @@ exports.login = async (req, res) => {
   }
 };
 
+
 exports.getUserDetails = async (req, res) => {
-  const { id } = req.params; // userId to fetch details for
-  const loggedInUserId = req.user.userId; // Assuming you get userId from authenticated user
+  const { id } = req.params;
+	const { userId } = req.user;
 
-  // Function to check if a string is a valid UUID
-  const isUUID = (str) => {
-    const regex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    return regex.test(str);
-  };
+	try {
+		const user = await User.findByPk(id, {
+			attributes: ["userId", "firstName", "lastName", "email", "phone"],
+		});
 
-  if (!isUUID(id)) {
-    return res.status(422).json({ status: 'Bad request', message: 'Invalid userId format', statusCode: 422 });
-  }
-  
-  try {
-    const user = await User.findByPk(id);
-
-    if (!user) {
+		if (!user) {
       return res.status(404).json({ status: 'Bad request', message: 'User not found', statusCode: 404 });
-    }
+		}
 
-    // Check if the requested userId matches the authenticated user's userId
-    if (user.userId === loggedInUserId) {
+		if (user.userId === userId) {
       return res.status(200).json({
-        status: 'success',
-        message: 'User details fetched successfully',
-        data: {
-          userId: user.userId,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-        }
-      });
-    }
+            status: 'success',
+            message: 'User record retrieved successfully',
+            data: {
+              userId: user.userId,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              phone: user.phone,
+            }
+        });
+		}
 
-    // Fetch organizations the logged-in user belongs to or has created
-    const organizations = await UserOrganisation.findAll({
-      where: { userId: loggedInUserId },
-      attributes: ['orgId'],
-      raw: true,
-    });
+		const organisations = await Organisation.findAll({
+			include: [
+				{
+					model: User,
+					where: { userId: req.user.userId },
+					attributes: [],
+					through: {
+						attributes: [],
+					},
+				},
+			],
+		});
 
-    const createdOrganizations = await Organisation.findAll({
-      where: { userId: loggedInUserId },
-      attributes: ['orgId'],
-      raw: true,
-    });
+		const isPartOfOrganisation = await UserOrganisation.findOne({
+			where: {
+				userId: id,
+				orgId: organisations.map((org) => org.orgId),
+			},
+		});
 
-    const organizationIds = [
-      ...new Set([
-        ...organizations.map(org => org.orgId),
-        ...createdOrganizations.map(org => org.orgId)
-      ])
-    ];
-
-    const userInSameOrganization = await UserOrganisation.findOne({
-      where: {
-        userId: user.userId,
-        orgId: organizationIds,
-      },
-      raw: true,
-    });
-
-    if (userInSameOrganization) {
+		if (isPartOfOrganisation) {
       return res.status(200).json({
-        status: 'success',
-        message: 'User details fetched successfully',
-        data: {
-          userId: user.userId,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-        }
+          status: 'success',
+          message: 'User record retrieved successfully',
+          data: {
+            userId: user.userId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            phone: user.phone,
+          }
       });
-    } else {
-      return res.status(403).json({ status: 'Bad request', message: 'Unauthorized', statusCode: 403 });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: 'Bad request', message: 'Internal server error', statusCode: 500 });
-  }
-};
+		}
+
+    return res.status(403).json({ status: 'Bad request', message: 'Client erro', statusCode: 403 });
+	} catch (error) {
+    return res.status(400).json({ status: 'Bad request', message: 'Client error', statusCode: 400 });
+	}
+}

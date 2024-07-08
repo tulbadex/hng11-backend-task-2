@@ -15,15 +15,4 @@ const UserOrganisation = sequelize.define('UserOrganisation', {
   },
 });
 
-UserOrganisation.associate = function(models) {
-  UserOrganisation.belongsToMany(models.User, { 
-    through: models.UserOrganisation, 
-    foreignKey: 'userId',
-  });
-  UserOrganisation.belongsToMany(models.Organisation, { 
-    through: models.UserOrganisation, 
-    foreignKey: 'orgId',
-  });
-};
-
 module.exports = UserOrganisation;

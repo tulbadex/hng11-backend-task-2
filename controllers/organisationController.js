@@ -4,9 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { sequelize } = require('../config/database');
 const pool = require('../config/database'); 
 
-const User = require('../models/user');
-const Organisation = require('../models/organisation');
-const UserOrganisation = require('../models/userOrganisation')
+const { User, Organisation, UserOrganisation } = require("../models");
 
 const formatValidationErrors = (details) => {
   return details.map((err) => ({
@@ -17,96 +15,70 @@ const formatValidationErrors = (details) => {
 
 exports.getOrganisations = async (req, res) => {
   try {
-    const userId = req.user.userId;
-
-    // Query to get user details
-    const userQuery = `
-      SELECT "userId", "firstName", "lastName", "email", "phone"
-      FROM "Users"
-      WHERE "userId" = :userId
-    `;
-
-    const userRows  = await sequelize.query(userQuery, {
-      replacements: { userId },
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    if (!userRows || userRows.length === 0) {
-      return res.status(404).json({ status: 'Bad request', message: 'User not found', statusCode: 404 });
-    }
-
-    const organisationsQuery = `
-      SELECT o."orgId", o."name", o."description"
-      FROM "UserOrganisations" uo
-      JOIN "Organisations" o ON o."orgId" = uo."orgId"
-      WHERE uo."userId" = :userId
-    `;
-
-    const organisations = await sequelize.query(organisationsQuery, {
-      replacements: { userId },
-      type: sequelize.QueryTypes.SELECT
-    });
-
-
-
-    if (!organisations || organisations.length === 0) {
-      return res.status(404).json({ status: 'Bad request', message: 'No organisations found for this user', statusCode: 404 });
-    }
-
-    const formattedOrganisations = organisations.map(org => ({
-      orgId: org.orgId,
-      name: org.name,
-      description: org.description,
-    }));
-
+		const organisations = await Organisation.findAll({
+			include: [
+				{
+					model: User,
+					where: { userId: req.user.userId },
+					attributes: [],
+					through: {
+						attributes: [],
+					},
+				},
+			],
+		});
+    
     res.status(200).json({
-      status: 'success',
-      message: 'Organisations fetched successfully',
+      status : "success",
+      message: "Organisations fetched successfully",
       data: {
-        organisations: formattedOrganisations,
-      },
-    });
-  } catch (err) {
-    console.error('Error fetching organisations:', err);
-    res.status(500).json({ status: 'Bad request', message: 'Could not fetch organisations', statusCode: 500 });
-  }
+        organisations
+      }
+    })
+	} catch (error) {
+    return res.status(400).json({ status: 'Bad request', message: 'Client error', statusCode: 400 });
+	}
 };
 
 
 exports.getOrganisation = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    const orgId = req.params.orgId;
+  const { orgId } = req.params;
+	try {
+		const organisation = await Organisation.findOne({
+			where: { orgId },
+			include: [
+				{
+					model: User,
+					attributes: [],
+					through: {
+						model: UserOrganisation,
+						where: { userId: req.user.userId },
+						attributes: [],
+					},
+				},
+			],
+		});
 
-    const checkOrganisationQuery = `
-      SELECT o."orgId", o."name", o."description"
-      FROM "Organisations" o
-      JOIN "UserOrganisations" uo ON o."orgId" = uo."orgId"
-      WHERE o."orgId" = :orgId AND uo."userId" = :userId
-    `;
+		if (!organisation) {
+      return res.status(404).json({
+        status: 'Not Found',
+        message: "Organisation not found",
+        statusCode: 404
+      })
+		}
 
-    const organisation  = await sequelize.query(checkOrganisationQuery, {
-      replacements: { orgId, userId },
-      type: sequelize.QueryTypes.SELECT
-    });
-
-    if (!organisation || organisation.length === 0) {
-      return res.status(404).json({ status: 'Bad request', message: 'Organisation not found', statusCode: 404 });
-    }
-
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      message: 'Organisation fetched successfully',
-      data: {
-        orgId: organisation.orgId,
-        name: organisation.name,
-        description: organisation.description,
-      },
-    });
-  } catch (err) {
-    console.error('Error fetching organisation:', err); // Log the error for debugging
-    res.status(400).json({ status: 'Bad request', message: 'Could not fetch organisation', statusCode: 400 });
-  }
+      message: "Organisation fetched successfully",
+      statusCode: 200
+    })
+	} catch (error) {
+    res.status(400).json({
+      staus: 'Bad Request',
+      message: "Client error",
+      statusCode: 400
+    })
+	}
 };
 
 

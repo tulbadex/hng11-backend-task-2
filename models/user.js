@@ -40,14 +40,4 @@ User.beforeCreate(async (user) => {
   user.password = await bcrypt.hash(user.password, 10);
 });
 
-User.associate = models => {
-  User.belongsToMany(models.Organisation, { 
-    through: { model: models.UserOrganisation }, 
-    foreignKey: 'userId', 
-    otherKey: 'orgId'
-  });
-  // User.hasMany(models.UserOrganisation)
-  // User.hasMany(models.Organisation)
-};
-
 module.exports = User;

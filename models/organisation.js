@@ -24,13 +24,4 @@ const Organisation = sequelize.define('Organisation', {
   },
 });
 
-Organisation.associate = function(models) {
-  /* Organisation.belongsToMany(models.User, { 
-    through: models.UserOrganisation, 
-    foreignKey: 'orgId',
-    otherKey: 'userId',
-  }); */
-  Organisation.hasOne(models.User)
-};
-
 module.exports = Organisation;
