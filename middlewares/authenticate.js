@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/user'); // Replace with your Sequelize models import
+const User = require('../models'); // Replace with your Sequelize models import
 
 module.exports = async (req, res, next) => {
   const authHeader = req.header('Authorization');
