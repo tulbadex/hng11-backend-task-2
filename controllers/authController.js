@@ -109,7 +109,7 @@ exports.login = async (req, res) => {
 
 
 exports.getUserDetails = async (req, res) => {
-  const { id } = req.params;
+  /* const { id } = req.params;
 	const { userId } = req.user;
 
 	try {
@@ -172,5 +172,74 @@ exports.getUserDetails = async (req, res) => {
     return res.status(403).json({ status: 'Bad request', message: 'Client erro', statusCode: 403 });
 	} catch (error) {
     return res.status(400).json({ status: 'Bad request', message: 'Client error', statusCode: 400 });
-	}
+	} */
+    const { id } = req.params; // userId to fetch details for
+    const loggedInUserId = req.user.userId; // Assuming you get userId from authenticated user
+  
+    // Function to check if a string is a valid UUID
+    const isUUID = (str) => {
+      const regex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+      return regex.test(str);
+    };
+
+    if (!isUUID(id)) {
+      return res.status(422).json({ status: 'Bad request', message: 'Invalid userId format', statusCode: 422 });
+    }
+
+    try {
+      const user = await User.findOne({ where: { userId: id } });
+      if (user) {
+        return res.status(404).json({ status: 'Bad request', message: 'User not found', statusCode: 404 });
+      }
+
+      if (user.userId == loggedInUserId) {
+        return res.status(200).json({
+          status: 'success',
+          message: 'User details fetched successfully',
+          data: {
+            userId: user.userId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            phone: user.phone,
+          }
+        });
+      }
+
+      // Fetch organizations the logged-in user belongs to or has created
+      const organizations = await UserOrganisation.findAll({
+        where: { userId: loggedInUserId },
+        attributes: ['orgId'],
+        raw: true,
+      });
+  
+      const organizationIds = organizations.map(org => org.orgId);
+
+      const userInSameOrganization = await UserOrganisation.findOne({
+        where: {
+          userId: user.userId,
+          orgId: organizationIds,
+        },
+        raw: true,
+      });
+
+      if (userInSameOrganization) {
+        return res.status(200).json({
+          status: 'success',
+          message: 'User details fetched successfully',
+          data: {
+            userId: user.userId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            phone: user.phone,
+          }
+        })
+      } else {
+        return res.status(403).json({ status: 'Bad request', message: 'Unauthorized', statusCode: 403 });
+      }
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ status: 'Bad request', message: 'Internal server error', statusCode: 500 });
+    }
 }

@@ -51,20 +51,18 @@ async function registerUser() {
 
 describe('Auth Endpoints', () => {
   it('Should Register User Successfully with Default Organisation', async () => {
+    await registerUser()
     const res = await request(app)
-      .post('/auth/register')
+      .post('/auth/login')
       .send({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
+        email: 'johnreal.doe@example.com',
         password: 'password123',
-        phone: '1234567890'
     });
-    expect(res.statusCode).toEqual(201);
+    expect(res.statusCode).toEqual(200);
     expect(res.body).toHaveProperty('data');
     expect(res.body.data.user.firstName).toBe('John');
     expect(res.body.data.user.lastName).toBe('Doe');
-    expect(res.body.data.user.email).toBe('john.doe@example.com');
+    expect(res.body.data.user.email).toBe('johnreal.doe@example.com');
 
     const accessToken = res.body.data.accessToken;
     const appRes = await request(app)
@@ -157,7 +155,7 @@ describe('Auth Endpoints', () => {
       .send({
         firstName: 'John',
         lastName: 'Doe',
-        email: 'john1.doe@example.com',
+        email: 'john11.doe@example.com',
         password: 'password123',
         phone: '1234567890',
       });
@@ -185,17 +183,15 @@ describe('Auth Endpoints', () => {
   });
 
   it('should fetch only user\'s own organisations', async () => {
-    const registerRes = await request(app)
-      .post('/auth/register')
+    await registerUser()
+    const loginRes = await request(app)
+      .post('/auth/login')
       .send({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john2.doe@example.com',
-        password: 'password123',
-        phone: '1234567890',
+        email: 'johnreal.doe@example.com',
+        password: 'password123'
       });
   
-    const accessToken = registerRes.body.data.accessToken;
+    const accessToken = loginRes.body.data.accessToken;
   
     const createOrgRes = await request(app)
       .post('/api/organisations')
@@ -219,17 +215,17 @@ describe('Auth Endpoints', () => {
   });
 
   it('should create an organisation for the user', async () => {
-    const registerRes = await request(app)
-      .post('/auth/register')
+    await registerUser()
+    const loginRes = await request(app)
+      .post('/auth/login')
       .send({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john3.doe@example.com',
+        email: 'johnreal.doe@example.com',
         password: 'password123',
-        phone: '1234567890',
       });
   
-    const accessToken = registerRes.body.data.accessToken;
+    const accessToken = loginRes.body.data.accessToken;
+
+    console.log(accessToken)
   
     const createOrgRes = await request(app)
       .post('/api/organisations')

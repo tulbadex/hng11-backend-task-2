@@ -14,7 +14,7 @@ const formatValidationErrors = (details) => {
 };
 
 exports.getOrganisations = async (req, res) => {
-  try {
+  /* try {
 		const organisations = await Organisation.findAll({
 			include: [
 				{
@@ -37,13 +37,72 @@ exports.getOrganisations = async (req, res) => {
     })
 	} catch (error) {
     return res.status(400).json({ status: 'Bad request', message: 'Client error', statusCode: 400 });
-	}
+	} */
+
+    try {
+
+      const userId = req.user.userId;
+
+      // Query to get user details
+      const userQuery = `
+        SELECT "userId", "firstName", "lastName", "email", "phone"
+        FROM "Users"
+        WHERE "userId" = :userId
+      `;
+      /* const userRows  = await sequelize.query(userQuery, {
+        replacements: { userId },
+        type: sequelize.QueryTypes.SELECT
+      }); */
+
+      const userRows = User.findOne({ where: { userId: userId } });
+
+  
+      if (!userRows || userRows.length === 0) {
+        return res.status(404).json({ status: 'Bad request', message: 'User not found', statusCode: 404 });
+      }
+  
+      const organisationsQuery = `
+        SELECT o."orgId", o."name", o."description"
+        FROM "UserOrganisations" uo
+        JOIN "Organisations" o ON o."orgId" = uo."orgId"
+        WHERE uo."userId" = :userId
+      `;
+  
+      const organisations = await sequelize.query(organisationsQuery, {
+        replacements: { userId },
+        type: sequelize.QueryTypes.SELECT
+      });
+
+      if (!organisations || organisations.length === 0) {
+        return res.status(404).json({ status: 'Bad request', message: 'No organisations found for this user', statusCode: 404 });
+      }
+  
+      const formattedOrganisations = organisations.map(org => ({
+        orgId: org.orgId,
+        name: org.name,
+        description: org.description,
+      }));
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Organisations fetched successfully',
+        status : "success",
+        message: "Organisations fetched successfully",
+        data: {
+          organisations: formattedOrganisations,
+        },
+      });
+    } catch (err) {
+      console.error('Error fetching organisations:', err);
+      res.status(500).json({ status: 'Bad request', message: 'Could not fetch organisations', statusCode: 500 });
+    }
 };
 
 
 exports.getOrganisation = async (req, res) => {
+	/*
   const { orgId } = req.params;
-	try {
+   try {
 		const organisation = await Organisation.findOne({
 			where: { orgId },
 			include: [
@@ -78,7 +137,41 @@ exports.getOrganisation = async (req, res) => {
       message: "Client error",
       statusCode: 400
     })
-	}
+	} */
+
+    const userId = req.user.userId;
+    const orgId = req.params.orgId;
+
+    try {
+
+      const checkOrganisationQuery = `
+        SELECT o."orgId", o."name", o."description"
+        FROM "Organisations" o
+        JOIN "UserOrganisations" uo ON o."orgId" = uo."orgId"
+        WHERE o."orgId" = :orgId AND uo."userId" = :userId
+      `;
+
+      const organisation  = await sequelize.query(checkOrganisationQuery, {
+        replacements: { orgId, userId },
+        type: sequelize.QueryTypes.SELECT
+      });
+
+      if (!organisation || organisation.length === 0) {
+        return res.status(404).json({ status: 'Bad request', message: 'Organisation not found', statusCode: 404 });
+      }
+      return res.status(200).json({
+        status: 'success',
+        message: 'Organisation fetched successfully',
+        data: {
+          orgId: organisation.orgId,
+          name: organisation.name,
+          description: organisation.description,
+        },
+      });
+    } catch (err) {
+      console.error('Error fetching organisation:', err); // Log the error for debugging
+      res.status(400).json({ status: 'Bad request', message: 'Could not fetch organisation', statusCode: 400 });
+    }
 };
 
 
